@@ -1,0 +1,21 @@
+{
+  "name": "@soulid/cli",
+  "version": "0.1.0",
+  "description": "CLI for the SOUL ID registry — publish, resolve, and list agent soul identifiers",
+  "type": "module",
+  "bin": {
+    "soulid": "./bin/soulid.js"
+  },
+  "scripts": {
+    "test": "echo \"no tests yet\""
+  },
+  "dependencies": {},
+  "keywords": ["soulid", "ai-agents", "identity", "cli"],
+  "author": "cerealskill",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cerealskill/soulid-cli.git"
+  },
+  "homepage": "https://soulid.io"
+}

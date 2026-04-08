@@ -1,6 +1,6 @@
 {
   "name": "@soulid/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI for the SOUL ID registry — publish, resolve, and list agent soul identifiers",
   "type": "module",
   "bin": {
@@ -9,8 +9,15 @@
   "scripts": {
     "test": "echo \"no tests yet\""
   },
-  "dependencies": {},
-  "keywords": ["soulid", "ai-agents", "identity", "cli"],
+  "dependencies": {
+    "@soulid/core": "^0.1.1"
+  },
+  "keywords": [
+    "soulid",
+    "ai-agents",
+    "identity",
+    "cli"
+  ],
   "author": "cerealskill",
   "license": "MIT",
   "repository": {

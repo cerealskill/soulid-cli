@@ -1,5 +1,6 @@
 import { apiFetch, getApiKey } from '../api.js'
 import { readFileSync } from 'fs'
+import { validate } from '@soulid/core'
 
 export async function publish([filePath]) {
   if (!filePath) {
@@ -15,8 +16,18 @@ export async function publish([filePath]) {
     process.exit(1)
   }
 
+  // Validate before publishing
+  const result = validate(doc)
+  if (!result.valid) {
+    console.error('✗ Invalid Soul Document:')
+    for (const err of result.errors) {
+      console.error(`  • ${err.field}: ${err.message}`)
+    }
+    process.exit(1)
+  }
+
   const key = getApiKey()
-  const result = await apiFetch('/publish', {
+  const res = await apiFetch('/publish', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${key}`,
@@ -25,5 +36,5 @@ export async function publish([filePath]) {
     body: JSON.stringify(doc),
   })
 
-  console.log(`✓ Published: ${result.soul_id}`)
+  console.log(`✓ Published: ${res.soul_id}`)
 }

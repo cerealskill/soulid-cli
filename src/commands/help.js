@@ -3,8 +3,9 @@ export function help() {
   soulid — SOUL ID Registry CLI
 
   COMMANDS
-    resolve <soul_id>          Resolve a soul identifier
-    publish <soul.json>        Publish a Soul Document to the registry
+    init [soul.json]           Create a new Soul Document interactively
+    resolve <soul_id>          Resolve a soul identifier from the registry
+    publish <soul.json>        Validate + publish a Soul Document to the registry
     list [options]             List registered souls
 
   LIST OPTIONS
@@ -15,12 +16,13 @@ export function help() {
     --offset <n>               Pagination offset
 
   ENVIRONMENT
-    SOULID_API_KEY             API key for publish (required for publish)
+    SOULID_API_KEY             API key (required for publish)
     SOULID_REGISTRY            Registry base URL (default: https://registry.soulid.io)
 
   EXAMPLES
+    soulid init                                      # interactive setup
     soulid resolve soulid:rasputina:v1:001
     soulid list --archetype assistant
-    soulid publish ./rasputina.json
+    soulid publish ./soul.json
   `)
 }

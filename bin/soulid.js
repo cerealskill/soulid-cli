@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { init }    from '../src/commands/init.js'
 import { resolve } from '../src/commands/resolve.js'
 import { publish } from '../src/commands/publish.js'
 import { list }    from '../src/commands/list.js'
@@ -6,7 +7,7 @@ import { help }    from '../src/commands/help.js'
 
 const [,, cmd, ...args] = process.argv
 
-const commands = { resolve, publish, list, help }
+const commands = { init, resolve, publish, list, help }
 
 if (!cmd || cmd === '--help' || cmd === '-h') {
   help()

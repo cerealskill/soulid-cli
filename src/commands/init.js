@@ -1,108 +1,87 @@
 import { createInterface } from 'readline'
-import { writeFileSync, existsSync } from 'fs'
-import { createSoulId, generateInstance } from '@soulid/core'
+import { writeFile, readFile } from 'fs/promises'
+import { existsSync }         from 'fs'
 
-function ask(rl, question, defaultValue = '') {
+function ask(rl, question, fallback = '') {
   return new Promise(resolve => {
-    const hint = defaultValue ? ` (${defaultValue})` : ''
-    rl.question(`${question}${hint}: `, answer => {
-      resolve(answer.trim() || defaultValue)
-    })
+    const prompt = fallback ? `${question} (${fallback}): ` : `${question}: `
+    rl.question(prompt, ans => resolve(ans.trim() || fallback))
   })
 }
 
-function askList(rl, question, defaultValue = '') {
-  return new Promise(resolve => {
-    const hint = defaultValue ? ` (${defaultValue})` : ''
-    rl.question(`${question}${hint}: `, answer => {
-      const raw = answer.trim() || defaultValue
-      resolve(raw.split(',').map(s => s.trim()).filter(Boolean))
-    })
-  })
+function slugify(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-export async function init([outputArg]) {
-  const rl = createInterface({ input: process.stdin, output: process.stdout })
+export async function init(args) {
+  const outFile = args[0] || 'soul.json'
 
-  console.log('\n✨ SOUL ID — init\n')
-  console.log('Creates a new Soul Document (soul.json).')
-  console.log('Press Enter to accept defaults.\n')
-
-  const namespace = await ask(rl, 'Namespace', 'soulid')
-  const archetype = await ask(rl, 'Archetype (e.g. assistant, scout, engineer)')
-  if (!archetype) {
-    console.error('\nArchetype is required.')
-    rl.close()
-    process.exit(1)
+  // Don't overwrite without confirmation
+  if (existsSync(outFile)) {
+    const rl0 = createInterface({ input: process.stdin, output: process.stdout })
+    const ans = await ask(rl0, `⚠️  ${outFile} already exists. Overwrite? (y/N)`, 'N')
+    rl0.close()
+    if (ans.toLowerCase() !== 'y') {
+      console.log('Aborted.')
+      process.exit(0)
+    }
   }
 
-  const version   = await ask(rl, 'Version', 'v1')
-  const instance  = await ask(rl, 'Instance (leave blank to auto-generate)', generateInstance())
-  const soul_id   = createSoulId(namespace, archetype, version, instance)
+  console.log('\n  ⚡ SOUL ID — Interactive Setup\n')
 
-  const name        = await ask(rl, 'Name (display name)', archetype)
-  const purpose     = await ask(rl, 'Purpose (one sentence)')
-  const values      = await askList(rl, 'Values (comma-separated, e.g. honesty,speed)', 'helpfulness')
-  const capabilities = await askList(rl, 'Capabilities (comma-separated, e.g. code,search)', '')
-  const memoryType  = await ask(rl, 'Memory type (persistent / ephemeral / none)', 'persistent')
-  const memBackend  = memoryType === 'persistent'
-    ? await ask(rl, 'Memory backend (file / git / s3)', 'file')
-    : undefined
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
 
-  const ownerIdRaw  = await ask(rl, 'Owner (GitHub username or DID, optional)', '')
-  const runtime     = await ask(rl, 'Preferred runtime (openclaw / claude-code / any)', 'openclaw')
+  const name      = await ask(rl, '  Agent name', 'My Agent')
+  const slugRaw   = await ask(rl, '  Slug (identifier)', slugify(name))
+  const slug      = slugify(slugRaw)
+  const namespace = await ask(rl, '  Namespace', 'soulid')
+  const version   = await ask(rl, '  Version', 'v1')
+  const instance  = await ask(rl, '  Instance', '001')
+  const soul_id   = `${namespace}:${slug}:${version}:${instance}`
+
+  console.log(`\n  soul_id → ${soul_id}`)
+
+  const archetype = await ask(rl, '\n  Archetype (assistant/analyst/coder/writer/researcher)', 'assistant')
+  const purpose   = await ask(rl, '  Purpose (one line)')
+  const valuesRaw = await ask(rl, '  Values (comma-separated)', 'reliability,helpfulness')
+  const capsRaw   = await ask(rl, '  Capabilities (comma-separated)', 'web_search,code,memory')
+  const runtime   = await ask(rl, '  Preferred runtime (openclaw/claude-code/codex/gemini)', 'openclaw')
+  const ownerRaw  = await ask(rl, '  Owner (github username or DID)', '')
 
   rl.close()
 
-  // Build Soul Document
+  const values       = valuesRaw.split(',').map(v => v.trim()).filter(Boolean)
+  const capabilities = capsRaw.split(',').map(v => v.trim()).filter(Boolean)
+
   const doc = {
     soul_id,
-    name: name || archetype,
+    name,
     archetype,
-    purpose: purpose || `${archetype} agent`,
+    purpose,
     values,
     capabilities,
     memory: {
-      type: memoryType,
-      ...(memBackend ? { backend: memBackend } : {}),
+      type: 'persistent',
+      backend: 'file',
+      strategy: 'pointer-index',
     },
     lineage: {
-      origin: `${namespace}:${archetype}:${version}`,
+      origin: `${namespace}:${slug}:${version}`,
       created_at: new Date().toISOString().split('T')[0],
     },
-    ...(ownerIdRaw ? {
-      owner: {
-        id: ownerIdRaw,
-        type: ownerIdRaw.startsWith('did:') ? 'individual' : 'individual',
-      }
-    } : {}),
     runtime_hints: {
       preferred_runtime: runtime,
-      soul_file: 'SOUL.md',
-      memory_strategy: 'pointer-index',
     },
   }
 
-  const outPath = outputArg || 'soul.json'
-
-  if (existsSync(outPath)) {
-    const overwriteRl = createInterface({ input: process.stdin, output: process.stdout })
-    await new Promise(resolve => {
-      overwriteRl.question(`\n⚠  ${outPath} already exists. Overwrite? (y/N): `, answer => {
-        overwriteRl.close()
-        if (answer.trim().toLowerCase() !== 'y') {
-          console.log('Aborted.')
-          process.exit(0)
-        }
-        resolve()
-      })
-    })
+  if (ownerRaw) {
+    doc.owner = { id: ownerRaw, type: ownerRaw.startsWith('did:') ? 'did' : 'github' }
   }
 
-  writeFileSync(outPath, JSON.stringify(doc, null, 2) + '\n')
-  console.log(`\n✓ Created ${outPath}`)
-  console.log(`  soul_id: ${soul_id}`)
-  console.log('\nNext steps:')
-  console.log(`  SOULID_API_KEY=<key> soulid publish ${outPath}`)
-  console.log(`  soulid resolve ${soul_id}`)
+  await writeFile(outFile, JSON.stringify(doc, null, 2) + '\n')
+
+  console.log(`\n  ✅ Soul Document written to ${outFile}`)
+  console.log(`\n  Next steps:`)
+  console.log(`    soulid publish ${outFile}   # publish to registry`)
+  console.log(`    soulid resolve ${soul_id}   # verify it's live\n`)
 }
